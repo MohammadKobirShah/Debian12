@@ -55,20 +55,17 @@ set -g status on
 set -g status-interval 5
 set -g status-position bottom
 set -g status-style "bg=#0a0a0a,fg=#00ff00"
-
 set -g status-left-length 60
 set -g status-right-length 60
-
-set -g status-left "#[fg=#00ff00,bold] ⚡ #[fg=#00cc00]HACKER-TERM #[fg=#00ff00]» #[fg=#00cc00][#S] "
-set -g status-right "#[fg=#00cc00] 💻 #[fg=#00ff00,bold]%H:%M #[fg=#00cc00]| %d %b %Y "
-
+set -g status-left "#[fg=#00ff00,bold] [*] #[fg=#00cc00]HACKER-TERM #[fg=#00ff00]>> #[fg=#00cc00][#S] "
+set -g status-right "#[fg=#00cc00] [>] #[fg=#00ff00,bold]%H:%M #[fg=#00cc00]| %d %b %Y "
 set -g status-justify centre
 
 # ── Windows ───────────────────────────────────────────────────────────────────
 setw -g window-status-style "fg=#00aa00,bg=#0a0a0a"
 setw -g window-status-current-style "fg=#000000,bg=#00ff00,bold"
 setw -g window-status-format "  #I:#W  "
-setw -g window-status-current-format "  #I:#W ●  "
+setw -g window-status-current-format "  #I:#W [+]  "
 setw -g window-status-separator ""
 
 # ── Panes ─────────────────────────────────────────────────────────────────────
@@ -80,20 +77,20 @@ set -g pane-border-lines heavy
 set -g message-style "bg=#000000,fg=#00ff00,bold"
 set -g message-command-style "bg=#000000,fg=#00ff00"
 
-# ── General Settings ──────────────────────────────────────────────────────────
+# ── General ───────────────────────────────────────────────────────────────────
 set -g mouse on
 set -g base-index 1
 set -g history-limit 50000
 setw -g pane-base-index 1
 set -g renumber-windows on
 set -g set-titles on
-set -g set-titles-string "⚡ HackerTerm | #W"
+set -g set-titles-string "HackerTerm | #W"
 set -g display-time 2000
 set -g focus-events on
 setw -g aggressive-resize on
 
 # ── Key Bindings ──────────────────────────────────────────────────────────────
-bind r source-file ~/.tmux.conf \; display "⚡ Config Reloaded!"
+bind r source-file ~/.tmux.conf \; display "[*] Config Reloaded!"
 bind | split-window -h -c "#{pane_current_path}"
 bind - split-window -v -c "#{pane_current_path}"
 bind h select-pane -L
@@ -132,7 +129,6 @@ set encoding=utf-8
 set termguicolors
 set clipboard=unnamed
 
-" Hacker green color overrides
 highlight Normal       ctermfg=46  ctermbg=0
 highlight LineNr       ctermfg=34  ctermbg=0
 highlight CursorLine   ctermbg=22  cterm=none
@@ -166,11 +162,11 @@ EOF
 RUN mkdir -p /root/.sessions /root/projects /root/.logs
 
 RUN cat > /root/.bashrc <<'BASHRC'
-# ═══════════════════════════════════════════════════════════════
-#   HackerTerm  |  Developed by Kobir Shah
-# ═══════════════════════════════════════════════════════════════
+# =============================================================================
+#   HackerTerm v2.0  |  Developed by Kobir Shah
+# =============================================================================
 
-# ── History ──────────────────────────────────────────────────
+# ── History ───────────────────────────────────────────────────────────────────
 export HISTFILE=/root/.bash_history
 export HISTFILESIZE=100000
 export HISTSIZE=100000
@@ -181,33 +177,43 @@ shopt -s checkwinsize
 shopt -s globstar
 PROMPT_COMMAND="history -a; history -c; history -r; ${PROMPT_COMMAND}"
 
-# ── Environment ───────────────────────────────────────────────
+# ── Environment ───────────────────────────────────────────────────────────────
 export TERM=xterm-256color
 export LANG=en_US.UTF-8
 export EDITOR=nano
 export VISUAL=nano
 
-# ── Terminal Colors: Hacker Green ─────────────────────────────
+# ── Terminal Colors: Hacker Green on Black ────────────────────────────────────
 printf '\033]11;#000000\007'
 printf '\033]10;#00ff00\007'
 
-# ── Git Branch ────────────────────────────────────────────────
+# ── Color Variables ───────────────────────────────────────────────────────────
+GREEN='\033[01;32m'
+DGREEN='\033[00;32m'
+YELLOW='\033[01;33m'
+CYAN='\033[00;36m'
+RESET='\033[0m'
+DGRAY='\033[01;30m'
+
+# ── Git Helpers ───────────────────────────────────────────────────────────────
 parse_git_branch() {
     local branch
     branch=$(git branch 2>/dev/null | grep '\*' | sed 's/\* //')
-    [ -n "$branch" ] && echo " ⎇ $branch"
+    [ -n "$branch" ] && echo " ($branch)"
 }
 
-parse_git_status() {
-    local status
-    status=$(git status --short 2>/dev/null | wc -l)
-    [ "$status" -gt 0 ] 2>/dev/null && echo " ✗$status" || echo " ✓"
+parse_git_dirty() {
+    local count
+    count=$(git status --short 2>/dev/null | wc -l)
+    if git rev-parse --git-dir > /dev/null 2>&1; then
+        [ "$count" -gt 0 ] && echo " [!${count}]" || echo " [OK]"
+    fi
 }
 
-# ── Premium Two-Line Hacker Prompt ────────────────────────────
-export PS1='\[\033[00;32m\]╔[\[\033[01;32m\]\u\[\033[00;32m\]@\[\033[01;32m\]\h\[\033[00;32m\]]-[\[\033[01;32m\]\w\[\033[00;32m\]]\[\033[01;33m\]$(parse_git_branch)\[\033[01;31m\]$(parse_git_status 2>/dev/null)\[\033[00;32m\] [\[\033[01;32m\]\t\[\033[00;32m\]]\n\[\033[00;32m\]╚══▶ \[\033[0m\]'
+# ── Two-Line Hacker Prompt ────────────────────────────────────────────────────
+export PS1='\[\033[00;32m\]╔[\[\033[01;32m\]\u\[\033[00;32m\]@\[\033[01;32m\]\h\[\033[00;32m\]]-[\[\033[01;32m\]\w\[\033[00;32m\]]\[\033[01;33m\]$(parse_git_branch)\[\033[01;31m\]$(parse_git_dirty)\[\033[00;32m\]-[\[\033[01;32m\]\t\[\033[00;32m\]]\n\[\033[00;32m\]╚══> \[\033[0m\]'
 
-# ── Aliases ───────────────────────────────────────────────────
+# ── Aliases ───────────────────────────────────────────────────────────────────
 export LS_COLORS='di=01;32:fi=00;32:ln=01;36:ex=01;32:*.py=00;32:*.js=00;32:*.sh=01;32:'
 alias ls='ls --color=auto --group-directories-first'
 alias ll='ls -alFh --color=auto --group-directories-first'
@@ -234,159 +240,162 @@ alias path='echo -e ${PATH//:/\\n}'
 alias reload='source /root/.bashrc'
 alias projects='cd /root/projects && ll'
 
-# ── Functions ─────────────────────────────────────────────────
+# ── Functions ─────────────────────────────────────────────────────────────────
 
-# Create dir and cd into it
 mkcd() {
     mkdir -p "$1" && cd "$1" || return
 }
 
-# Extract any archive
 extract() {
     if [ -f "$1" ]; then
         case "$1" in
-            *.tar.bz2) tar xjf "$1"    ;;
-            *.tar.gz)  tar xzf "$1"    ;;
-            *.tar.xz)  tar xJf "$1"    ;;
-            *.bz2)     bunzip2 "$1"    ;;
-            *.gz)      gunzip "$1"     ;;
-            *.tar)     tar xf "$1"     ;;
-            *.zip)     unzip "$1"      ;;
-            *.7z)      7z x "$1"       ;;
-            *)         echo "Cannot extract: $1" ;;
+            *.tar.bz2) tar xjf "$1" ;;
+            *.tar.gz)  tar xzf "$1" ;;
+            *.tar.xz)  tar xJf "$1" ;;
+            *.bz2)     bunzip2 "$1"  ;;
+            *.gz)      gunzip "$1"   ;;
+            *.tar)     tar xf "$1"   ;;
+            *.zip)     unzip "$1"    ;;
+            *.7z)      7z x "$1"     ;;
+            *)         echo "[-] Cannot extract: $1" ;;
         esac
     else
-        echo "File not found: $1"
+        echo "[-] File not found: $1"
     fi
 }
 
-# Quick HTTP server
 serve() {
     local port="${1:-8000}"
-    echo -e "\033[01;32m⚡ Serving on http://localhost:${port}\033[0m"
+    echo -e "${GREEN}[*] Serving on http://localhost:${port}${RESET}"
     python3 -m http.server "$port"
 }
 
-# System info quick view
 sysinfo() {
-    echo -e "\033[01;32m"
-    echo "  ┌─────────── SYSTEM INFO ───────────┐"
-    printf "  │  %-10s : %-20s │\n" "Hostname"  "$(hostname)"
-    printf "  │  %-10s : %-20s │\n" "Kernel"    "$(uname -r)"
-    printf "  │  %-10s : %-20s │\n" "Uptime"    "$(uptime -p)"
-    printf "  │  %-10s : %-20s │\n" "CPU"       "$(nproc) cores"
-    printf "  │  %-10s : %-20s │\n" "Memory"    "$(free -h | awk '/^Mem/{print $3 "/" $2}')"
-    printf "  │  %-10s : %-20s │\n" "Disk"      "$(df -h / | awk 'NR==2{print $3 "/" $2}')"
-    printf "  │  %-10s : %-20s │\n" "IP"        "$(hostname -I | awk '{print $1}')"
-    echo "  └───────────────────────────────────┘"
-    echo -e "\033[0m"
+    echo -e "${GREEN}"
+    echo "  .----------------------------------."
+    echo "  |        SYSTEM INFORMATION        |"
+    echo "  |----------------------------------|"
+    printf "  |  %-10s : %-18s|\n" "Hostname"  "$(hostname)"
+    printf "  |  %-10s : %-18s|\n" "Kernel"    "$(uname -r | cut -c1-18)"
+    printf "  |  %-10s : %-18s|\n" "Uptime"    "$(uptime -p | sed 's/up //' | cut -c1-18)"
+    printf "  |  %-10s : %-18s|\n" "CPU Cores" "$(nproc) cores"
+    printf "  |  %-10s : %-18s|\n" "Memory"    "$(free -h | awk '/^Mem/{print $3"/"$2}')"
+    printf "  |  %-10s : %-18s|\n" "Disk"      "$(df -h / | awk 'NR==2{print $3"/"$2}')"
+    printf "  |  %-10s : %-18s|\n" "Local IP"  "$(hostname -I | awk '{print $1}')"
+    echo "  '----------------------------------'"
+    echo -e "${RESET}"
 }
 
-# Help menu
 help-me() {
-    echo -e "\033[01;32m"
-    echo "  ╔═══════════════════════════════════════════════════════╗"
-    echo "  ║              ⚡  HACKERTERM REFERENCE  ⚡              ║"
-    echo "  ╠═══════════════════╦═══════════════════════════════════╣"
-    echo "  ║  TMUX             ║  COMMAND                          ║"
-    echo "  ╠═══════════════════╬═══════════════════════════════════╣"
-    echo "  ║  New Session      ║  tmux new -s name                 ║"
-    echo "  ║  List Sessions    ║  tmux ls                          ║"
-    echo "  ║  Attach Session   ║  tmux attach -t name              ║"
-    echo "  ║  Detach           ║  Ctrl+B then D                    ║"
-    echo "  ║  Split Vertical   ║  Ctrl+B then |                    ║"
-    echo "  ║  Split Horizontal ║  Ctrl+B then -                    ║"
-    echo "  ║  Move Panes       ║  Ctrl+B + H/J/K/L                 ║"
-    echo "  ║  New Window       ║  Ctrl+B then C                    ║"
-    echo "  ║  Reload Config    ║  Ctrl+B then R                    ║"
-    echo "  ╠═══════════════════╬═══════════════════════════════════╣"
-    echo "  ║  CUSTOM COMMANDS  ║  DESCRIPTION                      ║"
-    echo "  ╠═══════════════════╬═══════════════════════════════════╣"
-    echo "  ║  sysinfo          ║  System resource overview         ║"
-    echo "  ║  myip             ║  Show public IP address           ║"
-    echo "  ║  serve [port]     ║  Start HTTP server                ║"
-    echo "  ║  mkcd [dir]       ║  Make dir and enter               ║"
-    echo "  ║  extract [file]   ║  Extract any archive              ║"
-    echo "  ║  projects         ║  Go to projects folder            ║"
-    echo "  ║  ports            ║  Show open ports                  ║"
-    echo "  ║  reload           ║  Reload bashrc                    ║"
-    echo "  ╚═══════════════════╩═══════════════════════════════════╝"
-    echo -e "\033[0m"
+    echo -e "${GREEN}"
+    echo "  .=======================================================."
+    echo "  |           [*]  HACKERTERM REFERENCE  [*]              |"
+    echo "  |=======================-================================|"
+    echo "  |  TMUX COMMANDS         |  ACTION                      |"
+    echo "  |------------------------|------------------------------|"
+    echo "  |  tmux new -s name      |  Create new session          |"
+    echo "  |  tmux ls               |  List all sessions           |"
+    echo "  |  tmux attach -t name   |  Attach to session           |"
+    echo "  |  Ctrl+B then D         |  Detach from session         |"
+    echo "  |  Ctrl+B then |         |  Split pane vertical         |"
+    echo "  |  Ctrl+B then -         |  Split pane horizontal       |"
+    echo "  |  Ctrl+B + H/J/K/L      |  Move between panes          |"
+    echo "  |  Ctrl+B then C         |  New window                  |"
+    echo "  |  Ctrl+B then R         |  Reload tmux config          |"
+    echo "  |========================|==============================|"
+    echo "  |  CUSTOM COMMANDS       |  DESCRIPTION                 |"
+    echo "  |------------------------|------------------------------|"
+    echo "  |  sysinfo               |  System resource overview    |"
+    echo "  |  myip                  |  Show public IP address      |"
+    echo "  |  serve [port]          |  Start HTTP file server      |"
+    echo "  |  mkcd [dir]            |  Make dir and enter it       |"
+    echo "  |  extract [file]        |  Extract any archive         |"
+    echo "  |  projects              |  Go to /root/projects        |"
+    echo "  |  ports                 |  Show open ports             |"
+    echo "  |  reload                |  Reload .bashrc config       |"
+    echo "  |  help-me               |  Show this help menu         |"
+    echo "  '======================================================='  "
+    echo -e "${RESET}"
 }
 
-# ═════════════════════════════════════════════════════════════════
-#   PREMIUM HACKER TUI WELCOME BANNER
-# ═════════════════════════════════════════════════════════════════
+# =============================================================================
+#   PREMIUM HACKER TUI - WELCOME SCREEN
+# =============================================================================
 
-clear
-printf '\033[40m\033[2J\033[H'
+_show_banner() {
 
-G="\033[01;32m"   # bright green
-g="\033[00;32m"   # dim green
-Y="\033[01;33m"   # yellow
-C="\033[00;36m"   # cyan
-R="\033[00m"      # reset
-B="\033[01;30m"   # dark gray
+    clear
+    printf '\033[40m\033[2J\033[H'
 
-echo -e "${G}"
-echo "  ╔══════════════════════════════════════════════════════════════════════╗"
-echo "  ║                                                                      ║"
-echo "  ║   ██╗  ██╗ █████╗  ██████╗██╗  ██╗███████╗██████╗                  ║"
-echo "  ║   ██║  ██║██╔══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗                 ║"
-echo "  ║   ███████║███████║██║     █████╔╝ █████╗  ██████╔╝                 ║"
-echo "  ║   ██╔══██║██╔══██║██║     ██╔═██╗ ██╔══╝  ██╔══██╗                 ║"
-echo "  ║   ██║  ██║██║  ██║╚██████╗██║  ██╗███████╗██║  ██║                 ║"
-echo "  ║   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝                 ║"
-echo "  ║                                                                      ║"
-echo "  ║   ████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗ ██╗     ║"
-echo "  ║      ██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗██║     ║"
-echo "  ║      ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║██║     ║"
-echo "  ║      ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██║██║╚██╗██║██╔══██║██║     ║"
-echo "  ║      ██║   ███████╗██║  ██║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║███████╗║"
-echo "  ║      ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝║"
-echo "  ║                                                                      ║"
-echo "  ╠══════════════════════════════════════════════════════════════════════╣"
-echo -e "  ║  ${Y}  ⚡  SYSTEM ENVIRONMENT                                           ${G}║"
-echo "  ╠══════════════════════════════════════════════════════════════════════╣"
+    local G="\033[01;32m"
+    local g="\033[00;32m"
+    local Y="\033[01;33m"
+    local C="\033[01;36m"
+    local R="\033[0m"
+    local D="\033[02;32m"
 
-printf "  ${G}║${g}  %-6s  ${G}│${g}  %-10s  ${G}│${g}  %-6s  ${G}│${g}  %-10s  ${G}│${g}  %-6s  ${G}│${g}  %-6s      ${G}║${R}\n" \
-    "Node" "$(node --version 2>/dev/null || echo 'N/A')" \
-    "Python" "$(python3 --version 2>/dev/null | awk '{print $2}')" \
-    "NPM" "$(npm --version 2>/dev/null || echo 'N/A')"
+    # collect system info first
+    local NODE_V  PY_V  NPM_V  GIT_V  MEM  DISK  CPU  IP  UPTIME  DATE_V  SHELL_V
+    NODE_V=$(node   --version  2>/dev/null || echo "N/A")
+    PY_V=$(python3  --version  2>/dev/null | awk '{print $2}' || echo "N/A")
+    NPM_V=$(npm     --version  2>/dev/null || echo "N/A")
+    GIT_V=$(git     --version  2>/dev/null | awk '{print $3}' || echo "N/A")
+    MEM=$(free   -h 2>/dev/null | awk '/^Mem/{print $3"/"$2}')
+    DISK=$(df    -h /          | awk 'NR==2{print $3"/"$2" ("$5")"}')
+    CPU="$(nproc) cores"
+    IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    UPTIME=$(uptime -p 2>/dev/null | sed 's/up //')
+    DATE_V=$(date '+%d %b %Y  %H:%M')
+    SHELL_V=$(bash --version | head -1 | awk '{print $4}')
 
-printf "  ${G}║${g}  %-6s  ${G}│${g}  %-10s  ${G}│${g}  %-6s  ${G}│${g}  %-10s  ${G}│${g}  %-6s  ${G}│${g}  %-6s      ${G}║${R}\n" \
-    "Git" "$(git --version 2>/dev/null | awk '{print $3}')" \
-    "Shell" "$(bash --version | head -1 | awk '{print $4}')" \
-    "CPU" "$(nproc) cores"
+    echo -e "${G}"
+    echo "  +========================================================================+"
+    echo "  |                                                                        |"
+    echo "  |   ██╗  ██╗ █████╗  ██████╗██╗  ██╗███████╗██████╗                    |"
+    echo "  |   ██║  ██║██╔══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗                   |"
+    echo "  |   ███████║███████║██║     █████╔╝ █████╗  ██████╔╝                   |"
+    echo "  |   ██╔══██║██╔══██║██║     ██╔═██╗ ██╔══╝  ██╔══██╗                   |"
+    echo "  |   ██║  ██║██║  ██║╚██████╗██║  ██╗███████╗██║  ██║                   |"
+    echo "  |   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝                   |"
+    echo "  |                                                                        |"
+    echo "  |   ████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗ ██╗       |"
+    echo "  |      ██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗██║       |"
+    echo "  |      ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║██║       |"
+    echo "  |      ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██║██║╚██╗██║██╔══██║██║       |"
+    echo "  |      ██║   ███████╗██║  ██║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║███████╗  |"
+    echo "  |      ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝  |"
+    echo "  |                                                                        |"
+    echo "  +========================================================================+"
+    echo -e "  | ${Y}  [*] DEVELOPMENT ENVIRONMENT                                       ${G}|"
+    echo "  +==================+============+==================+====================+"
+    printf "  ${G}|${g} [>] Node.js : ${G}%-9s ${g}|${G}${g} [>] Python : ${G}%-9s ${g}|${G}${g} [>] NPM    : ${G}%-9s ${g}${G}|${R}\n" \
+        "$NODE_V" "$PY_V" "v$NPM_V"
+    printf "  ${G}|${g} [>] Git    : ${G}%-9s ${g}|${G}${g} [>] Shell  : ${G}%-9s ${g}|${G}${g} [>] CPU    : ${G}%-9s ${g}${G}|${R}\n" \
+        "$GIT_V" "$SHELL_V" "$CPU"
+    echo -e "${G}  +==================+============+==================+====================+"
+    echo -e "  | ${Y}  [*] SYSTEM RESOURCES                                               ${G}|"
+    echo "  +===================================+====================================+"
+    printf "  ${G}|${g} [+] Memory  : ${G}%-20s ${g}${G}|${g} [+] Disk    : ${G}%-18s ${g}${G}|${R}\n" \
+        "$MEM" "$DISK"
+    printf "  ${G}|${g} [+] Uptime  : ${G}%-20s ${g}${G}|${g} [+] Date    : ${G}%-18s ${g}${G}|${R}\n" \
+        "$UPTIME" "$DATE_V"
+    printf "  ${G}|${g} [+] Local IP: ${G}%-20s ${g}${G}|${g} [+] Host    : ${G}%-18s ${g}${G}|${R}\n" \
+        "$IP" "$(hostname)"
+    echo -e "${G}  +===================================+====================================+"
+    echo -e "  | ${C}  [!] Type [ help-me ] for full command reference                     ${G}|"
+    echo -e "  | ${C}  [!] Session is persistent -- safe to close the browser              ${G}|"
+    echo -e "  | ${C}  [!] Projects dir: /root/projects                                    ${G}|"
+    echo "  +========================================================================+"
+    echo -e "  |                                                                        |"
+    echo -e "  |    ${g}Developed with <3 by ${G}>>> Kobir Shah <<<                           ${G}|"
+    echo -e "  |    ${g}GitHub  >>  ${G}github.com/MohammadKobirShah                                  ${G}|"
+    echo -e "  |    ${g}Version >>  ${G}HackerTerm v2.0  [ $(date '+%Y') ]                           ${G}|"
+    echo "  |                                                                        |"
+    echo "  +========================================================================+"
+    echo -e "${R}"
+}
 
-echo -e "${G}  ╠══════════════════════════════════════════════════════════════════════╣"
-echo -e "  ║  ${Y}  📊  RESOURCES                                                      ${G}║"
-echo "  ╠══════════════════════════════════════════════════════════════════════╣"
-
-printf "  ${G}║${g}  💾  Memory  : ${G}%-20s${g}  🖥  CPU Cores : ${G}%-14s${G}║${R}\n" \
-    "$(free -h | awk '/^Mem/{print $3 "/" $2}')" \
-    "$(nproc)"
-
-printf "  ${G}║${g}  💿  Disk    : ${G}%-20s${g}  🌐  IP Addr   : ${G}%-14s${G}║${R}\n" \
-    "$(df -h / | awk 'NR==2{print $3 "/" $2 " (" $5 ")"}')" \
-    "$(hostname -I 2>/dev/null | awk '{print $1}' || echo 'N/A')"
-
-printf "  ${G}║${g}  ⏱  Uptime  : ${G}%-20s${g}  📅  Date      : ${G}%-14s${G}║${R}\n" \
-    "$(uptime -p 2>/dev/null | sed 's/up //')" \
-    "$(date '+%d %b %Y')"
-
-echo -e "${G}  ╠══════════════════════════════════════════════════════════════════════╣"
-echo -e "  ║  ${C}  💡  Type [ help-me ] for command reference                         ${G}║"
-echo -e "  ║  ${C}  🔒  Session is persistent — safe to close the browser              ${G}║"
-echo -e "  ║  ${C}  📁  Projects folder: /root/projects                                ${G}║"
-echo "  ╠══════════════════════════════════════════════════════════════════════╣"
-echo -e "  ║                                                                      ║"
-echo -e "  ║      ${g}Developed with ${G}💚${g} by  ${G}░▒▓  Kobir Shah  ▓▒░                      ${G}║"
-echo -e "  ║      ${g}GitHub  »  ${G}github.com/MohammadKobirShah                                  ${G}║"
-echo -e "  ║      ${g}Version »  ${G}HackerTerm v2.0                                      ${G}║"
-echo "  ║                                                                      ║"
-echo "  ╚══════════════════════════════════════════════════════════════════════╝"
-echo -e "${R}"
+_show_banner
 
 cd /root
 BASHRC
@@ -397,21 +406,20 @@ RUN cat > /start.sh <<'EOF'
 
 SESSION_NAME="main"
 
-# Log startup time
+mkdir -p /root/.logs
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] HackerTerm starting..." >> /root/.logs/startup.log
 
 if ! tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
     tmux new-session -d -s "$SESSION_NAME" /bin/bash
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] New session created: $SESSION_NAME" >> /root/.logs/startup.log
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] New tmux session created: $SESSION_NAME" >> /root/.logs/startup.log
 else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Reattaching session: $SESSION_NAME" >> /root/.logs/startup.log
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Reattaching existing session: $SESSION_NAME" >> /root/.logs/startup.log
 fi
 
 exec ttyd \
     -p "${PORT}" \
     -c "${USERNAME}:${PASSWORD}" \
     -W \
-    --title "⚡ HackerTerm | Kobir Shah" \
     tmux attach-session -t "$SESSION_NAME"
 EOF
 
