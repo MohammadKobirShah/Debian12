@@ -4,8 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PORT=7681 \
     USERNAME=1 \
     PASSWORD=1 \
-    TERM=xterm-256color \
-    SSH_PORT=22
+    TERM=xterm-256color
 
 # ── System Packages ───────────────────────────────────────────────────────────
 RUN apt-get update && \
@@ -26,8 +25,6 @@ RUN apt-get update && \
         lolcat \
         nodejs \
         npm \
-        openssh-client \
-        openssh-server \
         htop \
         tree \
         zip \
@@ -42,17 +39,6 @@ RUN apt-get update && \
 ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
-
-# ── SSH Server Setup ──────────────────────────────────────────────────────────
-RUN mkdir -p /run/sshd /root/.ssh && \
-    chmod 700 /root/.ssh && \
-    echo 'root:${PASSWORD}' | chpasswd && \
-    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#Port 22/Port 22/' /etc/ssh/sshd_config && \
-    echo "AllowUsers root" >> /etc/ssh/sshd_config && \
-    ssh-keygen -A
 
 # ── TTYd Binary ───────────────────────────────────────────────────────────────
 RUN wget -qO /usr/local/bin/ttyd \
@@ -414,47 +400,14 @@ _show_banner
 cd /root
 BASHRC
 
-# ── Tmate Binary (Instant Public URLs) ────────────────────────────────────────
-RUN wget -qO /tmp/tmate.tar.xz \
-    https://github.com/tmate-io/tmate/releases/download/2.4.0/tmate-2.4.0-static-linux-amd64.tar.xz && \
-    tar -xf /tmp/tmate.tar.xz -C /tmp && \
-    mv /tmp/tmate-2.4.0-static-linux-amd64/tmate /usr/local/bin/tmate && \
-    chmod +x /usr/local/bin/tmate && \
-    rm -rf /tmp/tmate*
-
-# ── sshx Binary (Collaborative Terminal Sharing) ─────────────────────────────
-RUN wget -qO /usr/local/bin/sshx \
-    https://s3.amazonaws.com/sshx/sshx-x86_64-unknown-linux-musl && \
-    chmod +x /usr/local/bin/sshx
-
-# ── WebSSH Server ─────────────────────────────────────────────────────────────
-COPY webssh /webssh
-RUN cd /webssh && npm install
-ENV WEBSSH_PORT=3000
-
 # ── Startup Script ────────────────────────────────────────────────────────────
 RUN cat > /start.sh <<'EOF'
 #!/bin/bash
 
 SESSION_NAME="main"
 
-mkdir -p /root/.logs /root/.ssh
-chmod 700 /root/.ssh
-
-# Set root password dynamically
-echo "root:${PASSWORD}" | chpasswd
-
-# Inject SSH public key if provided
-if [ -n "$SSH_PUBLIC_KEY" ]; then
-    echo "$SSH_PUBLIC_KEY" > /root/.ssh/authorized_keys
-    chmod 600 /root/.ssh/authorized_keys
-fi
-
+mkdir -p /root/.logs
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] HackerTerm starting..." >> /root/.logs/startup.log
-
-# Start SSH daemon
-/usr/sbin/sshd -p "${SSH_PORT}"
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] SSH daemon started on port ${SSH_PORT}" >> /root/.logs/startup.log
 
 if ! tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
     tmux new-session -d -s "$SESSION_NAME" /bin/bash
@@ -462,36 +415,6 @@ if ! tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
 else
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Reattaching existing session: $SESSION_NAME" >> /root/.logs/startup.log
 fi
-
-# Start WebSSH server in background
-cd /webssh
-node server.js >> /root/.logs/webssh.log 2>&1 &
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] WebSSH started on port ${WEBSSH_PORT}" >> /root/.logs/startup.log
-
-# ── Tmate Public Tunnel ──────────────────────────────────────────────────────
-(
-    sleep 5
-    TMATE_SOCK=/tmp/tmate.sock
-    tmate -S "$TMATE_SOCK" new-session -d -s tmate -n public bash
-    tmate -S "$TMATE_SOCK" wait tmate-ready
-    echo "" >> /root/.logs/startup.log
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ═══ TMATE PUBLIC URLS ═══" >> /root/.logs/startup.log
-    echo "SSH:  $(tmate -S "$TMATE_SOCK" display -p '#{tmate_ssh}')" >> /root/.logs/startup.log
-    echo "WEB:  $(tmate -S "$TMATE_SOCK" display -p '#{tmate_web}')" >> /root/.logs/startup.log
-    echo "READ: $(tmate -S "$TMATE_SOCK" display -p '#{tmate_ssh_ro}')" >> /root/.logs/startup.log
-    echo "═══════════════════════════════════════" >> /root/.logs/startup.log
-) &
-
-# ── sshx Collaborative Session ───────────────────────────────────────────────
-(
-    sleep 8
-    echo "" >> /root/.logs/startup.log
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ═══ SSHX COLLAB URL ═══" >> /root/.logs/startup.log
-    sshx --quiet >> /root/.logs/sshx.log 2>&1 &
-    sleep 3
-    cat /root/.logs/sshx.log >> /root/.logs/startup.log
-    echo "═══════════════════════════════════════" >> /root/.logs/startup.log
-) &
 
 exec ttyd \
     -p "${PORT}" \
@@ -502,6 +425,6 @@ EOF
 
 RUN chmod +x /start.sh
 
-EXPOSE 22 7681 3000
+EXPOSE 7681
 
 CMD ["/start.sh"]
